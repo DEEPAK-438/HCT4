@@ -1,0 +1,143 @@
+import hashlib
+import os
+from getpass import getpass
+import random
+from PIL import Image
+
+# Mock database to store user data
+user_db = {}
+
+def hash_password(password):
+    """
+    Hash a password for storing in the database.
+    
+    Parameters:
+    password (str): The plaintext password to be hashed.
+
+    Returns:
+    bytes: The salt and hashed password concatenated.
+    """
+    # Generate a random salt
+    salt = os.urandom(32)
+    # Hash the password using PBKDF2 with HMAC-SHA256
+    hashed_pw = hashlib.pbkdf2_hmac('sha256', password.encode(), salt, 100000)
+    # Return salt concatenated with the hashed password
+    return salt + hashed_pw
+
+def verify_password(stored_password, provided_password):
+    """
+    Verify a stored password against one provided by the user.
+
+    Parameters:
+    stored_password (bytes): The stored password (salt + hashed password).
+    provided_password (str): The password provided by the user for verification.
+
+    Returns:
+    bool: True if the provided password is correct, False otherwise.
+    """
+    # Extract the salt from the stored password
+    salt = stored_password[:32]
+    # Extract the hashed password from the stored password
+    stored_hash = stored_password[32:]
+    # Hash the provided password with the same salt
+    hashed_pw = hashlib.pbkdf2_hmac('sha256', provided_password.encode(), salt, 100000)
+    # Return True if the hashes match, False otherwise
+    return hashed_pw == stored_hash
+
+def captcha():
+    """
+    Simple CAPTCHA to prevent automated login attempts.
+
+    Returns:
+    bool: True if the CAPTCHA answer is correct, False otherwise.
+    """
+    # Generate two random numbers for the CAPTCHA
+    num1 = random.randint(1, 9)
+    num2 = random.randint(1, 9)
+    # Ask the user to solve the CAPTCHA
+    print(f"CAPTCHA: What is {num1} + {num2}?")
+    answer = int(input())
+    # Return True if the answer is correct, False otherwise
+    return answer == num1 + num2
+
+def register():
+    """
+    Register a new user with a username, password, and graphical password.
+    """
+    # Get the username from the user
+    username = input("Enter username: ")
+    # Check if the username already exists in the database
+    if username in user_db:
+        print("Username already exists.")
+        return
+    # Get the password from the user
+    password = getpass("Enter password: ")
+    # Hash the password
+    hashed_pw = hash_password(password)
+    
+    # Ask the user to choose an image as their graphical password
+    graphical_password = input("Choose an image as your graphical password (input the name of the image): ")
+    
+    # Store the user data in the mock database
+    user_db[username] = {
+        "password": hashed_pw,
+        "graphical_password": graphical_password
+    }
+    print("User registered successfully.")
+
+def login():
+    """
+    Login a user by verifying their username, password, and graphical password.
+    """
+    # Get the username from the user
+    username = input("Enter username: ")
+    # Check if the username exists in the database
+    if username not in user_db:
+        print("User not found.")
+        return
+    
+    # Get the password from the user
+    password = getpass("Enter password: ")
+    # Verify the provided password
+    if not verify_password(user_db[username]['password'], password):
+        print("Incorrect password.")
+        return
+
+    # Get the graphical password from the user
+    graphical_password = input("Enter your graphical password (input the name of the image): ")
+    # Verify the graphical password
+    if user_db[username]['graphical_password'] != graphical_password:
+        print("Incorrect graphical password.")
+        return
+    
+    # Perform CAPTCHA to prevent automated login attempts
+    if captcha():
+        print("Login successful!")
+    else:
+        print("CAPTCHA failed. Login failed.")
+
+def main():
+    """
+    Main function to run the registration and login menu.
+    """
+    while True:
+        # Display the menu options
+        print("1. Register")
+        print("2. Login")
+        print("3. Exit")
+        # Get the user's choice
+        choice = input("Choose an option: ")
+        
+        # Execute the corresponding function based on user choice
+        if choice == '1':
+            register()
+        elif choice == '2':
+            login()
+        elif choice == '3':
+            break
+        else:
+            print("Invalid option, please try again.")
+
+# Entry point of the script
+if __name__ == "__main__":
+    main()
